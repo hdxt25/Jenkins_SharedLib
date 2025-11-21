@@ -1,14 +1,22 @@
+// vars/trivy_image_scan.groovy
 def call(String projectName, String imageTag, String dockerhubuser) {
-    withCredentials([usernamePassword(credentialsId: 'docker', 
-                                     usernameVariable: 'dockerhubuser', 
-                                     passwordVariable: 'dockerhubpass')]) {
-        withEnv(["PROJECT_NAME=${projectName}", "IMAGE_TAG=${imageTag}", "DOCKER_USER=${dockerhubuser}"]) {
-            sh '''
-                IMAGE="${DOCKER_USER}/${PROJECT_NAME}:${IMAGE_TAG}"
-                echo "Scanning Docker image: $IMAGE"
-                trivy image "$IMAGE" > trivyimage.txt
-            '''
-        }
+    // Use withCredentials safely for Docker login
+    withCredentials([usernamePassword(
+        credentialsId: 'docker', 
+        usernameVariable: 'DOCKER_USER', 
+        passwordVariable: 'DOCKER_PASS'
+    )]) {
+        // Build the full Docker image name
+        def IMAGE = "${dockerhubuser}/${projectName}:${imageTag}"
+
+        // Run Trivy scan
+        sh """
+            echo "Logging into Docker Hub..."
+            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+            echo "Scanning Docker image: ${IMAGE}"
+            trivy image ${IMAGE} > trivyimage.txt
+        """
     }
 }
+
 
